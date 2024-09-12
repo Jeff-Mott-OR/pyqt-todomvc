@@ -44,14 +44,13 @@ class appState:
     @classmethod
     def changeDisableWidgets(self, disableWidgets):
         self.disableWidgets = disableWidgets
+        for callback in self.disableWidgetsCallbacks:
+            callback(disableWidgets)
 
-        disableWidgetsCheckBox.setChecked(disableWidgets)
-        disableWidgetsMenuAction.setChecked(disableWidgets)
-
-        topLeftGroupBox.setDisabled(disableWidgets)
-        topRightGroupBox.setDisabled(disableWidgets)
-        bottomLeftTabWidget.setDisabled(disableWidgets)
-        bottomRightGroupBox.setDisabled(disableWidgets)
+    disableWidgetsCallbacks = []
+    @classmethod
+    def onChangeDisableWidgets(self, callback):
+        self.disableWidgetsCallbacks.append(callback)
 
     @classmethod
     def changeProgress(self, progressPercent):
@@ -59,7 +58,6 @@ class appState:
         progressBar.setValue(progressBar.maximum() * self.progressPercent // 100)
 
 # An ApplicationContext that passes argv to the underlying QApplication.
-# More: https://build-system.fman.io/manual/#ApplicationContext
 class ApplicationContextArgv(ApplicationContext):
     @cached_property
     def app(self):
@@ -92,6 +90,7 @@ def createTopLayout():
     disableWidgetsCheckBox = QCheckBox("&Disable widgets")
     disableWidgetsCheckBox.setChecked(appState.disableWidgets)
     disableWidgetsCheckBox.toggled.connect(lambda isChecked: appState.changeDisableWidgets(isChecked))
+    appState.onChangeDisableWidgets(lambda isChecked: disableWidgetsCheckBox.setChecked(isChecked))
     topLayout.addWidget(disableWidgetsCheckBox)
 
     return (topLayout, disableWidgetsCheckBox)
@@ -115,6 +114,7 @@ def createTopLeftGroupBox():
     topLeftGroupBox = QGroupBox("Group 1")
     topLeftGroupBox.setDisabled(appState.disableWidgets)
     topLeftGroupBox.setLayout(topLeftGroupLayout)
+    appState.onChangeDisableWidgets(lambda isChecked: topLeftGroupBox.setDisabled(isChecked))
 
     return topLeftGroupBox
 topLeftGroupBox = createTopLeftGroupBox()
@@ -139,6 +139,7 @@ def createTopRightGroupBox():
     topRightGroupBox = QGroupBox("Group 2")
     topRightGroupBox.setDisabled(appState.disableWidgets)
     topRightGroupBox.setLayout(topRightGroupLayout)
+    appState.onChangeDisableWidgets(lambda isChecked: topRightGroupBox.setDisabled(isChecked))
 
     return topRightGroupBox
 topRightGroupBox = createTopRightGroupBox()
@@ -168,6 +169,7 @@ def createBottomLeftTabWidget():
     bottomLeftTabWidget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Ignored)
     bottomLeftTabWidget.addTab(tab1, "&Table")
     bottomLeftTabWidget.addTab(tab2, "Text &Edit")
+    appState.onChangeDisableWidgets(lambda isChecked: bottomLeftTabWidget.setDisabled(isChecked))
 
     return bottomLeftTabWidget
 bottomLeftTabWidget = createBottomLeftTabWidget()
@@ -206,6 +208,7 @@ def createBottomRightGroupBox():
     bottomRightGroupBox.setChecked(True)
     bottomRightGroupBox.setDisabled(appState.disableWidgets)
     bottomRightGroupBox.setLayout(layout)
+    appState.onChangeDisableWidgets(lambda isChecked: bottomRightGroupBox.setDisabled(isChecked))
 
     return bottomRightGroupBox
 bottomRightGroupBox = createBottomRightGroupBox()
@@ -244,6 +247,7 @@ window.setWindowTitle("Styles")
 disableWidgetsMenuAction = QAction("&Disable widgets")
 disableWidgetsMenuAction.setCheckable(True)
 disableWidgetsMenuAction.triggered.connect(lambda isChecked: appState.changeDisableWidgets(isChecked))
+appState.onChangeDisableWidgets(lambda isChecked: disableWidgetsMenuAction.setChecked(isChecked))
 
 menu = window.menuBar().addMenu("π")
 menu.addAction(disableWidgetsMenuAction)
