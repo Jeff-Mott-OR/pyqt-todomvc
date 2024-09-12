@@ -1,9 +1,11 @@
+from fbs_runtime.application_context import cached_property
+from fbs_runtime.application_context.PyQt5 import ApplicationContext
+
 import random
 import sys
 
-from PyQt6.QtCore import QDateTime, Qt, QTimer
-from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
+from PyQt5.QtCore import QDateTime, Qt, QTimer
+from PyQt5.QtWidgets import (QAction, QApplication, QCheckBox, QComboBox, QDateTimeEdit,
         QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
         QMainWindow, QMenu, QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
         QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
@@ -56,7 +58,14 @@ class appState:
         self.progressPercent = progressPercent % 101
         progressBar.setValue(progressBar.maximum() * self.progressPercent // 100)
 
-app = QApplication(sys.argv)
+# An ApplicationContext that passes argv to the underlying QApplication.
+# More: https://build-system.fman.io/manual/#ApplicationContext
+class ApplicationContextArgv(ApplicationContext):
+    @cached_property
+    def app(self):
+        return QApplication(sys.argv)
+
+appctxt = ApplicationContextArgv()
 QApplication.setStyle(QStyleFactory.create(appState.styleKey))
 if (appState.useStylePalette):
     QApplication.setPalette(QApplication.style().standardPalette())
@@ -240,4 +249,4 @@ menu = window.menuBar().addMenu("π")
 menu.addAction(disableWidgetsMenuAction)
 
 window.show()
-app.exec()
+appctxt.app.exec()
