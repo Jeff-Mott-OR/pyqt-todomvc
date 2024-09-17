@@ -1,256 +1,238 @@
-from fbs_runtime.application_context import cached_property
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 
-import random
-import sys
+from event_emitter import EventEmitter
+from PyQt5.QtWidgets import (
+    QAction,
+    QCheckBox,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QPushButton,
+    QStyleFactory,
+    QVBoxLayout,
+    QWidget
+)
 
-from PyQt5.QtCore import QDateTime, Qt, QTimer
-from PyQt5.QtWidgets import (QAction, QApplication, QCheckBox, QComboBox, QDateTimeEdit,
-        QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-        QMainWindow, QMenu, QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
-        QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
-        QToolBar, QVBoxLayout, QWidget)
+# Basically just a struct.
+class Todo:
+    def __init__(self, text, done = False):
+        self.text = text
+        self.done = done
 
-STYLE_KEYS = QStyleFactory.keys()
-ORIGINAL_PALETTE = QApplication.palette()
+# This app state represents the one source for truth.
+# UI interactions should update the app state,
+# then the app state will notify subscribers to update themselves.
+class AppState:
+    def __init__(self, qApp):
+        self.events = EventEmitter()
 
-# Think of this like an object literal. That's why it's named in lower camel case.
-# It is inspired by React/Redux. This app state is the one source for truth,
-# and the methods are actions to update the state and update the UI widgets.
-class appState:
-    styleKey = random.choice(STYLE_KEYS)
-    useStylePalette = random.choice([True, False])
-    disableWidgets = random.choice([True, False])
-    progressPercent = 13
+        self._todos = []
+        self._todosFilter = "all" # all | active | completed
+        self._qApp = qApp
 
-    @classmethod
-    def changeStyle(self, styleKey):
-        self.styleKey = styleKey
-        QApplication.setStyle(QStyleFactory.create(styleKey))
-        self._updatePalette()
+    def todos(self):
+        # Consider returning a shallow copy to enforce read-only. But for now keep it simple.
+        return self._todos
+    def addTodo(self, text):
+        self._todos.append(Todo(text))
+        self.events.emit("todosChange")
+    def setTodoDone(self, todo, done):
+        todo.done = done
+        self.events.emit("todosChange")
+    def clearTodosDone(self):
+        self._todos = [todo for todo in self._todos if not todo.done]
+        self.events.emit("todosChange")
 
-    @classmethod
-    def changePalette(self, useStylePalette):
-        self.useStylePalette = useStylePalette
-        self._updatePalette()
+    def todosFilter(self):
+        return self._todosFilter
+    def setTodosFilter(self, filter):
+        self._todosFilter = filter
+        self.events.emit("filterChange")
 
-    @classmethod
-    def _updatePalette(self):
-        if (self.useStylePalette):
-            QApplication.setPalette(QApplication.style().standardPalette())
-        else:
-            QApplication.setPalette(ORIGINAL_PALETTE)
+    def guiStyle(self):
+        return self._qApp.style().objectName()
+    def setGuiStyle(self, styleName):
+        self._qApp.setStyle(styleName)
+        self.events.emit("guiStyleChange")
 
-    @classmethod
-    def changeDisableWidgets(self, disableWidgets):
-        self.disableWidgets = disableWidgets
-        for callback in self.disableWidgetsCallbacks:
-            callback(disableWidgets)
+def guiStyleMenuActions():
+    for styleKey in QStyleFactory.keys():
+        def loopClosureCapture():
+            # The loop varialbe `styleKey` will change value next loop iteration,
+            # so we need to use a closure to capture a per-iteration copy.
+            styleKeyClosureCapture = styleKey
 
-    disableWidgetsCallbacks = []
-    @classmethod
-    def onChangeDisableWidgets(self, callback):
-        self.disableWidgetsCallbacks.append(callback)
+            menuAction = QAction(f"{styleKey} style")
+            menuAction.setCheckable(True)
 
-    @classmethod
-    def changeProgress(self, progressPercent):
-        self.progressPercent = progressPercent % 101
-        progressBar.setValue(progressBar.maximum() * self.progressPercent // 100)
+            def updateCheckedState():
+                menuAction.setChecked(appState.guiStyle() == styleKeyClosureCapture.lower())
+            updateCheckedState() # Render initial state.
 
-# An ApplicationContext that passes argv to the underlying QApplication.
-class ApplicationContextArgv(ApplicationContext):
-    @cached_property
-    def app(self):
-        return QApplication(sys.argv)
+            # When a menu is clicked, update the one source for truth.
+            menuAction.triggered.connect(lambda: appState.setGuiStyle(styleKeyClosureCapture))
+            # After the one source for truth is updated, it will notify all interested parties.
+            appState.events.on("guiStyleChange", updateCheckedState)
 
-appctxt = ApplicationContextArgv()
-QApplication.setStyle(QStyleFactory.create(appState.styleKey))
-if (appState.useStylePalette):
-    QApplication.setPalette(QApplication.style().standardPalette())
+            return menuAction
+        yield loopClosureCapture()
 
-def createTopLayout():
-    topLayout = QHBoxLayout()
+def todoLineEditWidget():
+    lineEdit = QLineEdit()
+    lineEdit.setPlaceholderText("What needs to be done?")
 
-    styleComboBox = QComboBox()
-    styleComboBox.addItems(STYLE_KEYS)
-    styleComboBox.setCurrentText(appState.styleKey)
-    styleComboBox.textActivated.connect(lambda styleKey: appState.changeStyle(styleKey))
+    def onReturnPressed():
+        text = lineEdit.text().strip()
+        if not text:
+            return
+        appState.addTodo(text)
+        lineEdit.clear()
 
-    styleLabel = QLabel("&Style:")
-    styleLabel.setBuddy(styleComboBox)
-    topLayout.addWidget(styleLabel)
-    topLayout.addWidget(styleComboBox)
-    topLayout.addStretch(1)
+    lineEdit.returnPressed.connect(onReturnPressed)
 
-    useStylePaletteCheckBox = QCheckBox("&Use style's standard palette")
-    useStylePaletteCheckBox.setChecked(appState.useStylePalette)
-    useStylePaletteCheckBox.toggled.connect(lambda isChecked: appState.changePalette(isChecked))
-    topLayout.addWidget(useStylePaletteCheckBox)
+    return lineEdit
 
-    disableWidgetsCheckBox = QCheckBox("&Disable widgets")
-    disableWidgetsCheckBox.setChecked(appState.disableWidgets)
-    disableWidgetsCheckBox.toggled.connect(lambda isChecked: appState.changeDisableWidgets(isChecked))
-    appState.onChangeDisableWidgets(lambda isChecked: disableWidgetsCheckBox.setChecked(isChecked))
-    topLayout.addWidget(disableWidgetsCheckBox)
+def todoListWidget():
+    def renderTodoList():
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
 
-    return (topLayout, disableWidgetsCheckBox)
-(topLayout, disableWidgetsCheckBox) = createTopLayout()
+        todosFiltered = [
+            todo
+                for todo in appState.todos()
+                if
+                    appState.todosFilter() == "all" or
+                    appState.todosFilter() == "active" and not todo.done or
+                    appState.todosFilter() == "completed" and todo.done
+        ]
 
-def createTopLeftGroupBox():
-    topLeftGroupLayout = QVBoxLayout()
+        for todo in todosFiltered:
+            def loopClosureCapture():
+                todoClosureCapture = todo
 
-    radioButton1 = QRadioButton("Radio button 1")
-    radioButton1.setChecked(True)
-    topLeftGroupLayout.addWidget(radioButton1)
-    topLeftGroupLayout.addWidget(QRadioButton("Radio button 2"))
-    topLeftGroupLayout.addWidget(QRadioButton("Radio button 3"))
+                todoCheckBox = QCheckBox(todo.text)
+                if todo.done:
+                    todoCheckBox.setChecked(True)
 
-    checkBox = QCheckBox("Tri-state check box")
-    checkBox.setTristate(True)
-    checkBox.setCheckState(Qt.CheckState.PartiallyChecked)
-    topLeftGroupLayout.addWidget(checkBox)
-    topLeftGroupLayout.addStretch(1)
+                    font = todoCheckBox.font()
+                    font.setStrikeOut(True)
+                    todoCheckBox.setFont(font)
 
-    topLeftGroupBox = QGroupBox("Group 1")
-    topLeftGroupBox.setDisabled(appState.disableWidgets)
-    topLeftGroupBox.setLayout(topLeftGroupLayout)
-    appState.onChangeDisableWidgets(lambda isChecked: topLeftGroupBox.setDisabled(isChecked))
+                todoCheckBox.toggled.connect(lambda checked: appState.setTodoDone(todoClosureCapture, checked))
 
-    return topLeftGroupBox
-topLeftGroupBox = createTopLeftGroupBox()
+                layout.addWidget(todoCheckBox)
+            loopClosureCapture()
 
-def createTopRightGroupBox():
-    topRightGroupLayout = QVBoxLayout()
+        return widget
 
-    defaultPushButton = QPushButton("Default Push Button")
-    defaultPushButton.setDefault(True)
-    topRightGroupLayout.addWidget(defaultPushButton)
+    widget = renderTodoList() # Render initial state.
 
-    togglePushButton = QPushButton("Toggle Push Button")
-    togglePushButton.setCheckable(True)
-    togglePushButton.setChecked(True)
-    topRightGroupLayout.addWidget(togglePushButton)
+    def updateTodoList():
+        nonlocal widget
 
-    flatPushButton = QPushButton("Flat Push Button")
-    flatPushButton.setFlat(True)
-    topRightGroupLayout.addWidget(flatPushButton)
-    topRightGroupLayout.addStretch(1)
+        oldWidget = widget
+        widget = renderTodoList()
+        oldWidget.parentWidget().layout().replaceWidget(oldWidget, widget)
 
-    topRightGroupBox = QGroupBox("Group 2")
-    topRightGroupBox.setDisabled(appState.disableWidgets)
-    topRightGroupBox.setLayout(topRightGroupLayout)
-    appState.onChangeDisableWidgets(lambda isChecked: topRightGroupBox.setDisabled(isChecked))
+        # Bug in PyQt? oldWidget should be removed entirely,
+        # and yet I'll still see it unless I hide it.
+        oldWidget.hide()
 
-    return topRightGroupBox
-topRightGroupBox = createTopRightGroupBox()
+    appState.events.on("todosChange", updateTodoList)
+    appState.events.on("filterChange", updateTodoList)
 
-def createBottomLeftTabWidget():
-    tab1HBox = QHBoxLayout()
-    tab1HBox.setContentsMargins(5, 5, 5, 5)
-    tab1HBox.addWidget(QTableWidget(10, 10))
-    tab1 = QWidget()
-    tab1.setLayout(tab1HBox)
+    return widget
 
-    tab2HBox = QHBoxLayout()
-    tab2HBox.setContentsMargins(5, 5, 5, 5)
-    textEdit = QTextEdit()
-    textEdit.setPlainText("Twinkle, twinkle, little star,\n"
-                            "How I wonder what you are.\n"
-                            "Up above the world so high,\n"
-                            "Like a diamond in the sky.\n"
-                            "Twinkle, twinkle, little star,\n"
-                            "How I wonder what you are!\n")
-    tab2HBox.addWidget(textEdit)
-    tab2 = QWidget()
-    tab2.setLayout(tab2HBox)
+def numRemainingLabel():
+    def itemsRemainingText():
+        todosNotDone = [todo for todo in appState.todos() if not todo.done]
+        maybePlural = "s" if len(todosNotDone) != 1 else ""
+        return f"{len(todosNotDone)} item{maybePlural} left!"
 
-    bottomLeftTabWidget = QTabWidget()
-    bottomLeftTabWidget.setDisabled(appState.disableWidgets)
-    bottomLeftTabWidget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Ignored)
-    bottomLeftTabWidget.addTab(tab1, "&Table")
-    bottomLeftTabWidget.addTab(tab2, "Text &Edit")
-    appState.onChangeDisableWidgets(lambda isChecked: bottomLeftTabWidget.setDisabled(isChecked))
+    widget = QLabel(itemsRemainingText())
 
-    return bottomLeftTabWidget
-bottomLeftTabWidget = createBottomLeftTabWidget()
+    appState.events.on("todosChange", lambda: widget.setText(itemsRemainingText()))
 
-def createBottomRightGroupBox():
-    layout = QGridLayout()
+    return widget
 
-    lineEdit = QLineEdit('s3cRe7')
-    lineEdit.setEchoMode(QLineEdit.EchoMode.Password)
-    layout.addWidget(lineEdit, 0, 0, 1, 2)
+def todosFilterBox():
+    groupBox = QGroupBox()
+    layout = QHBoxLayout(groupBox)
 
-    spinBox = QSpinBox()
-    spinBox.setValue(50)
-    layout.addWidget(spinBox, 1, 0, 1, 2)
+    for filterLabel in ["All", "Active", "Completed"]:
+        def loopClosureCapture():
+            filterKeyClosureCapture = filterLabel.lower()
 
-    dateTimeEdit = QDateTimeEdit()
-    dateTimeEdit.setDateTime(QDateTime.currentDateTime())
-    layout.addWidget(dateTimeEdit, 2, 0, 1, 2)
+            button = QPushButton(filterLabel)
+            button.setCheckable(True)
+            button.setFlat(True)
 
-    slider = QSlider(Qt.Orientation.Horizontal)
-    slider.setValue(40)
-    layout.addWidget(slider, 3, 0)
+            def updateCheckedState():
+                button.setChecked(appState.todosFilter() == filterKeyClosureCapture)
+            updateCheckedState() # Render initial state.
 
-    scrollBar = QScrollBar(Qt.Orientation.Horizontal)
-    scrollBar.setValue(60)
-    layout.addWidget(scrollBar, 4, 0)
+            button.released.connect(lambda: appState.setTodosFilter(filterKeyClosureCapture))
+            appState.events.on("filterChange", updateCheckedState)
 
-    dial = QDial()
-    dial.setNotchesVisible(True)
-    dial.setValue(30)
-    layout.addWidget(dial, 3, 1, 2, 1)
-    layout.setRowStretch(5, 1)
+            layout.addWidget(button)
+        loopClosureCapture()
 
-    bottomRightGroupBox = QGroupBox("Group 3")
-    bottomRightGroupBox.setCheckable(True)
-    bottomRightGroupBox.setChecked(True)
-    bottomRightGroupBox.setDisabled(appState.disableWidgets)
-    bottomRightGroupBox.setLayout(layout)
-    appState.onChangeDisableWidgets(lambda isChecked: bottomRightGroupBox.setDisabled(isChecked))
+    return groupBox
 
-    return bottomRightGroupBox
-bottomRightGroupBox = createBottomRightGroupBox()
+def clearCompletedButton():
+    button = QPushButton("Clear Completed")
+    button.released.connect(lambda: appState.clearTodosDone())
 
-def createProgressBar():
-    progressBar = QProgressBar()
-    progressBar.setRange(0, 10000)
-    progressBar.setValue(progressBar.maximum() * appState.progressPercent // 100)
+    return button
 
-    timer = QTimer(progressBar)
-    timer.timeout.connect(lambda: appState.changeProgress(appState.progressPercent + 1))
-    timer.start(1000)
+def footerWidget():
+    widget = QWidget()
+    layout = QHBoxLayout(widget)
 
-    return progressBar
-progressBar = createProgressBar()
+    layout.addWidget(numRemainingLabel())
+    layout.addStretch()
+    layout.addWidget(todosFilterBox())
+    layout.addStretch()
+    layout.addWidget(clearCompletedButton())
 
-mainLayout = QGridLayout()
-mainLayout.addLayout(topLayout, 0, 0, 1, 2) # row, column, rowSpan, columnSpan
-mainLayout.setColumnStretch(0, 1)
-mainLayout.addWidget(topLeftGroupBox, 1, 0) # row, column [, rowSpan=1, columnSpan=1]
-mainLayout.addWidget(topRightGroupBox, 1, 1)
-mainLayout.setRowStretch(1, 1)
-mainLayout.setColumnStretch(1, 1)
-mainLayout.addWidget(bottomLeftTabWidget, 2, 0)
-mainLayout.addWidget(bottomRightGroupBox, 2, 1)
-mainLayout.setRowStretch(2, 1)
-mainLayout.addWidget(progressBar, 3, 0, 1, 2)
+    def updateFooterVisible():
+        widget.setVisible(len(appState.todos()) > 0)
+    updateFooterVisible() # Render initial state.
 
-widgetGallery = QWidget()
-widgetGallery.setLayout(mainLayout)
+    appState.events.on("todosChange", updateFooterVisible)
 
+    return widget
+
+def todoBox():
+    groupBox = QGroupBox("Todos")
+    layout = QVBoxLayout(groupBox)
+
+    layout.addWidget(todoLineEditWidget())
+    layout.addWidget(todoListWidget())
+    layout.addStretch()
+    layout.addWidget(footerWidget())
+
+    # Give the group box some breathing room.
+    # Maybe there's margins or spacing that would accomplish the same?
+    wrapWidget = QWidget()
+    wrapLayout = QVBoxLayout(wrapWidget)
+    wrapLayout.addWidget(groupBox)
+
+    return wrapWidget
+
+appctxt = ApplicationContext()
+appState = AppState(appctxt.app)
 window = QMainWindow()
-window.setCentralWidget(widgetGallery)
-window.setWindowTitle("Styles")
+window.setWindowTitle("PyQt TodoMVC")
+window.resize(640, 480);
 
-disableWidgetsMenuAction = QAction("&Disable widgets")
-disableWidgetsMenuAction.setCheckable(True)
-disableWidgetsMenuAction.triggered.connect(lambda isChecked: appState.changeDisableWidgets(isChecked))
-appState.onChangeDisableWidgets(lambda isChecked: disableWidgetsMenuAction.setChecked(isChecked))
+piMenu = window.menuBar().addMenu("π")
+for menuAction in guiStyleMenuActions():
+    piMenu.addAction(menuAction)
 
-menu = window.menuBar().addMenu("π")
-menu.addAction(disableWidgetsMenuAction)
+window.setCentralWidget(todoBox())
 
 window.show()
 appctxt.app.exec()
