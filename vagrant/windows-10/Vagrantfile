@@ -1,0 +1,81 @@
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure("2") do |config|
+    # The most common configuration options are documented and commented below.
+    # For a complete reference, please see the online documentation at
+    # https://docs.vagrantup.com.
+
+    # Every Vagrant development environment requires a box. You can search for
+    # boxes at https://vagrantcloud.com/search.
+    config.vm.box = "gusztavvargadr/windows-10"
+    # config.vm.box_version = "2202.0.2408"
+
+    # Disable automatic box update checking. If you disable this, then
+    # boxes will only be checked for updates when the user runs
+    # `vagrant box outdated`. This is not recommended.
+    config.vm.box_check_update = false
+
+    # The time in seconds that Vagrant will wait for the machine to boot and be
+    # accessible. By default this is 300 seconds.
+    config.vm.boot_timeout = 900
+
+    # Share an additional folder to the guest VM. The first argument is
+    # the path on the host to the actual folder. The second argument is
+    # the path on the guest to mount the folder. And the optional third
+    # argument is a set of non-required options.
+    config.vm.synced_folder "../..", "/app_src"
+
+    # Provider-specific configuration so you can fine-tune various
+    # backing providers for Vagrant. These expose provider-specific options.
+    config.vm.provider "virtualbox" do |vb|
+        # vb.gui = false
+        vb.memory = 1024
+    end
+
+    # Enable provisioning with a shell script. Additional provisioners such as
+    # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
+    # documentation for more information about their specific syntax and use.
+    config.vm.provision "shell", inline: <<-SHELL
+        # Install various VcRedist packages to fix missing msvcr100.dll, msvcr110.dll, concrt140.dll.
+        powershell Invoke-WebRequest -Uri https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x64.exe -OutFile C:\\Users\\vagrant\\vcredist_2010_x64.exe
+        C:\\Users\\vagrant\\vcredist_2010_x64.exe /q
+        powershell Invoke-WebRequest -Uri https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x64.exe -OutFile C:\\Users\\vagrant\\vcredist_2012_x64.exe
+        C:\\Users\\vagrant\\vcredist_2012_x64.exe /q
+        powershell Invoke-WebRequest -Uri https://download.microsoft.com/download/9/3/F/93FCF1E7-E6A4-478B-96E7-D4B285925B00/vc_redist.x64.exe -OutFile C:\\Users\\vagrant\\vcredist_2015_x64.exe
+        C:\\Users\\vagrant\\vcredist_2015_x64.exe /q
+
+        # This "missing" dll file wasn't missing, it just wasn't in the path. I don't know why.
+        cmd /c mklink C:\\Windows\\System32\\api-ms-win-crt-multibyte-l1-1-0.dll C:\\Windows\\System32\\downlevel\\api-ms-win-crt-multibyte-l1-1-0.dll
+
+        powershell Invoke-WebRequest -Uri https://cfhcable.dl.sourceforge.net/project/nsis/NSIS%203/3.10/nsis-3.10-setup.exe?viasf=1 -OutFile C:\\Users\\vagrant\\nsis-3.10-setup.exe
+        C:\\Users\\vagrant\\nsis-3.10-setup.exe /S
+        $env:Path = "C:\\Program Files (x86)\\NSIS;$env:Path"
+
+        powershell Invoke-WebRequest -Uri https://www.python.org/ftp/python/3.6.8/python-3.6.8-amd64.exe -OutFile C:\\Users\\vagrant\\python-3.6.8-amd64.exe
+        C:\\Users\\vagrant\\python-3.6.8-amd64.exe /passive PrependPath=1
+        # PrependPath is supposed to take care of this next step, but it doesn't and I don't know why, so fix the path myself.
+        $env:Path = "C:\\Users\\vagrant\\AppData\\Local\\Programs\\Python\\Python36;$env:Path"
+        $env:Path = "C:\\Users\\vagrant\\AppData\\Local\\Programs\\Python\\Python36\\Scripts;$env:Path"
+
+        # Make path changes permanent.
+        [Environment]::SetEnvironmentVariable("Path", $env:Path, "Machine")
+    SHELL
+    config.vm.provision "shell", inline: <<-SHELL
+        mkdir C:\\app_build
+        cd C:\\app_build
+
+        python -m venv venv
+        .\\venv\\Scripts\\activate.bat
+        # Activate is supposed to take care of this next step, but it doesn't and I don't know why, so fix the path myself.
+        $env:Path = "C:\\app_build\\venv\\Scripts\\;$env:Path"
+
+        python -m pip install --upgrade pip
+        python -m pip install PyQt5 fbs PyEventEmitter
+
+        cd C:\\app_src
+        fbs freeze
+        fbs installer
+    SHELL
+end

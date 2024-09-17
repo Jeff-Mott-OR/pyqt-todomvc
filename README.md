@@ -28,7 +28,7 @@ Execute shell commands for the virtual environment. It adds stuff to your PATH a
 
 4.
 
-    $ (venv) pip install PyQt5
+    $ (venv) pip install PyQt5 PyEventEmitter
 
 [More.](https://riverbankcomputing.com/software/pyqt/intro)
 
@@ -37,3 +37,14 @@ Execute shell commands for the virtual environment. It adds stuff to your PATH a
     $ (venv) pip install fbs
 
 All done, ready to use.
+
+## Reproducible builds with Vagrant
+
+Build for other OSes by generating a VM from a vagrant configuration file. [More.](https://developer.hashicorp.com/vagrant/intro)
+
+### Windows
+
+    $ cd vagrant/windows-10
+    $ vagrant up
+
+If all goes well, your source directory will contain a Windows setup installer, at `<pyqt-todo>/target/MyFbsAppSetup.exe`.
