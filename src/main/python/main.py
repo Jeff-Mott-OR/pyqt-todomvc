@@ -1,6 +1,7 @@
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 
 from event_emitter import EventEmitter
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QAction,
     QCheckBox,
@@ -40,6 +41,10 @@ class AppState:
         self.events.emit("todosChange")
     def setTodoDone(self, todo, done):
         todo.done = done
+        self.events.emit("todosChange")
+    def setAllTodosDone(self, done):
+        for todo in self._todos:
+            todo.done = done
         self.events.emit("todosChange")
     def clearTodosDone(self):
         self._todos = [todo for todo in self._todos if not todo.done]
@@ -93,6 +98,36 @@ def todoLineEditWidget():
     lineEdit.returnPressed.connect(onReturnPressed)
 
     return lineEdit
+
+def markAllWidget():
+    checkBox = QCheckBox()
+    checkBox.setToolTip("Mark all")
+    checkBox.setTristate(True)
+
+    def updateCheckedState():
+        anyDone = any(todo.done for todo in appState.todos())
+        anyNotDone = any(not todo.done for todo in appState.todos())
+
+        checkBox.setCheckState(
+            Qt.CheckState.PartiallyChecked if anyDone and anyNotDone
+            else Qt.CheckState.Checked if anyDone else Qt.CheckState.Unchecked
+        )
+    updateCheckedState() # Render initial state.
+
+    checkBox.released.connect(lambda: appState.setAllTodosDone(checkBox.isChecked()))
+    appState.events.on("todosChange", updateCheckedState)
+
+    return checkBox
+
+def todoLineEditMarkAllWidget():
+    widget = QWidget()
+    layout = QHBoxLayout(widget)
+
+    layout.addWidget(markAllWidget())
+    layout.addSpacing(10)
+    layout.addWidget(todoLineEditWidget())
+
+    return widget
 
 def todoListWidget():
     def renderTodoList():
@@ -209,7 +244,7 @@ def todoBox():
     groupBox = QGroupBox("Todos")
     layout = QVBoxLayout(groupBox)
 
-    layout.addWidget(todoLineEditWidget())
+    layout.addWidget(todoLineEditMarkAllWidget())
     layout.addWidget(todoListWidget())
     layout.addStretch()
     layout.addWidget(footerWidget())
@@ -222,8 +257,8 @@ def todoBox():
 
     return wrapWidget
 
-appctxt = ApplicationContext()
-appState = AppState(appctxt.app)
+appCtxt = ApplicationContext()
+appState = AppState(appCtxt.app)
 window = QMainWindow()
 window.setWindowTitle("PyQt TodoMVC")
 window.resize(640, 480);
@@ -235,4 +270,4 @@ for menuAction in guiStyleMenuActions():
 window.setCentralWidget(todoBox())
 
 window.show()
-appctxt.app.exec()
+appCtxt.app.exec()
