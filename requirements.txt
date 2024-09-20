@@ -1,0 +1,3 @@
+fbs
+PyEventEmitter
+PyQt5
