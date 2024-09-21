@@ -46,6 +46,9 @@ class AppState:
         for todo in self._todos:
             todo.done = done
         self.events.emit("todosChange")
+    def deleteTodo(self, removeTodo):
+        self._todos = [todo for todo in self._todos if not todo is removeTodo]
+        self.events.emit("todosChange")
     def clearTodosDone(self):
         self._todos = [todo for todo in self._todos if not todo.done]
         self.events.emit("todosChange")
@@ -131,8 +134,8 @@ def todoLineEditMarkAllWidget():
 
 def todoListWidget():
     def renderTodoList():
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
+        todosWidget = QWidget()
+        todosLayout = QVBoxLayout(todosWidget)
 
         todosFiltered = [
             todo
@@ -154,13 +157,21 @@ def todoListWidget():
                     font = todoCheckBox.font()
                     font.setStrikeOut(True)
                     todoCheckBox.setFont(font)
-
                 todoCheckBox.toggled.connect(lambda checked: appState.setTodoDone(todoClosureCapture, checked))
 
-                layout.addWidget(todoCheckBox)
+                closeButton = QPushButton("╳")
+                closeButton.setToolTip("Delete entry")
+                closeButton.clicked.connect(lambda: appState.deleteTodo(todoClosureCapture))
+
+                todoRowLayout = QHBoxLayout()
+                todoRowLayout.addWidget(todoCheckBox)
+                todoRowLayout.addStretch()
+                todoRowLayout.addWidget(closeButton)
+
+                todosLayout.addLayout(todoRowLayout)
             loopClosureCapture()
 
-        return widget
+        return todosWidget
 
     widget = renderTodoList() # Render initial state.
 
