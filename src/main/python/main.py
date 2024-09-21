@@ -21,6 +21,7 @@ class Todo:
     def __init__(self, text, done = False):
         self.text = text
         self.done = done
+        self.editing = False
 
 # This app state represents the one source for truth.
 # UI interactions should update the app state,
@@ -45,6 +46,13 @@ class AppState:
     def setAllTodosDone(self, done):
         for todo in self._todos:
             todo.done = done
+        self.events.emit("todosChange")
+    def setTodoEditing(self, todo):
+        todo.editing = True
+        self.events.emit("todosChange")
+    def updateTodo(self, todo, text):
+        todo.text = text
+        todo.editing = False
         self.events.emit("todosChange")
     def deleteTodo(self, removeTodo):
         self._todos = [todo for todo in self._todos if not todo is removeTodo]
@@ -150,22 +158,41 @@ def todoListWidget():
             def loopClosureCapture():
                 todoClosureCapture = todo
 
-                todoCheckBox = QCheckBox(todo.text)
-                if todo.done:
-                    todoCheckBox.setChecked(True)
-
-                    font = todoCheckBox.font()
-                    font.setStrikeOut(True)
-                    todoCheckBox.setFont(font)
+                todoCheckBox = QCheckBox()
+                todoCheckBox.setChecked(todo.done)
                 todoCheckBox.toggled.connect(lambda checked: appState.setTodoDone(todoClosureCapture, checked))
 
-                closeButton = QPushButton("╳")
+                if not todo.editing:
+                    # Inherit to override protected event methods.
+                    class TodoLabel(QLabel):
+                        def mouseDoubleClickEvent(self, event):
+                            appState.setTodoEditing(todoClosureCapture)
+                    todoLabel = TodoLabel(todo.text)
+                    if todo.done:
+                        font = todoLabel.font()
+                        font.setStrikeOut(True)
+                        todoLabel.setFont(font)
+                else:
+                    todoEdit = QLineEdit()
+                    todoEdit.setText(todo.text)
+                    def onReturnPressed():
+                        text = todoEdit.text().strip()
+                        if not text:
+                            return
+                        appState.updateTodo(todoClosureCapture, text)
+                    todoEdit.returnPressed.connect(onReturnPressed)
+
+                closeButton = QPushButton("✗")
                 closeButton.setToolTip("Delete entry")
                 closeButton.clicked.connect(lambda: appState.deleteTodo(todoClosureCapture))
 
                 todoRowLayout = QHBoxLayout()
                 todoRowLayout.addWidget(todoCheckBox)
-                todoRowLayout.addStretch()
+                if not todo.editing:
+                    todoRowLayout.addWidget(todoLabel)
+                    todoRowLayout.addStretch()
+                else:
+                    todoRowLayout.addWidget(todoEdit)
                 todoRowLayout.addWidget(closeButton)
 
                 todosLayout.addLayout(todoRowLayout)
