@@ -6,6 +6,11 @@ In the spirit of [TodoMVC](https://todomvc.com/), I used [PyQt](https://riverban
 
 For fun and no profit. When I learned C++, at first I put off learning a GUI library. But I was interested in and always meant to learn the Qt GUI library. It lets you write desktop GUIs once that will look native for each of the various OSes. Later, after I did a hobby project in Python, I stumbled upon PyQt -- a project that exposes the Qt C++ library in Python -- and I decided to dive in.
 
+## Pre-built executables and installers
+
+* Windows: [PyQtTodoMVCSetup.exe](https://github.com/Jeff-Mott-OR/pyqt-todomvc/releases/download/1.0.0/PyQtTodoMVCSetup.exe)
+* Ubuntu: [PyQtTodoMVC.deb](https://github.com/Jeff-Mott-OR/pyqt-todomvc/releases/download/1.0.0/PyQtTodoMVC.deb)
+
 ## Reproducible builds with Vagrant
 
 Build for other OSes by generating a VM from a vagrant configuration file. [More.](https://developer.hashicorp.com/vagrant/intro)
