@@ -4,7 +4,7 @@ In the spirit of [TodoMVC](https://todomvc.com/), I used [PyQt](https://riverban
 
 ## But why?
 
-For fun and no profit. When I learned C++, at first I put off learning a GUI library. But I was interested in and always meant to learn the Qt GUI library. It lets you write desktop GUIs once that will look native for each of the various OSes. I did a recent hobby project in Python, so when I stumbled upon PyQt -- a project that exposes the Qt library in Python -- I decided to dive in.
+For fun and no profit. When I learned C++, at first I put off learning a GUI library. But I was interested in and always meant to learn the Qt GUI library. It lets you write desktop GUIs once that will look native for each of the various OSes. Later, after I did a hobby project in Python, I stumbled upon PyQt -- a project that exposes the Qt C++ library in Python -- and I decided to dive in.
 
 ## Reproducible builds with Vagrant
 
@@ -54,4 +54,4 @@ Execute shell commands for the virtual environment. It adds stuff to your PATH a
 
 5.
 
-    $ fbs run
+    $ (venv) fbs run

@@ -1,6 +1,6 @@
 {
     "categories": "Utility;",
-    "description": "",
-    "author_email": "",
-    "url": ""
+    "description": "PyQt TodoMVC",
+    "author_email": "jeff.mott.or@gmail.com",
+    "url": "https://github.com/Jeff-Mott-OR/pyqt-todomvc"
 }
