@@ -43,8 +43,8 @@ class AppState:
     def setTodoDone(self, todo, done):
         todo.done = done
         self.events.emit("todosChange")
-    def setAllTodosDone(self, done):
-        for todo in self._todos:
+    def setTodosDone(self, todos, done):
+        for todo in todos:
             todo.done = done
         self.events.emit("todosChange")
     def setTodoEditing(self, todo):
@@ -72,6 +72,12 @@ class AppState:
     def setGuiStyle(self, styleName):
         self._qApp.setStyle(styleName)
         self.events.emit("guiStyleChange")
+
+def todosFiltered(appState):
+    filter = appState.todosFilter()
+    for todo in appState.todos():
+        if filter == "all" or filter == "active" and not todo.done or filter == "completed" and todo.done:
+            yield todo
 
 def guiStyleMenuActions():
     for styleKey in QStyleFactory.keys():
@@ -116,8 +122,9 @@ def markAllWidget():
     checkBox.setTristate(True)
 
     def updateCheckedState():
-        anyDone = any(todo.done for todo in appState.todos())
-        anyNotDone = any(not todo.done for todo in appState.todos())
+        todos = todosFiltered(appState)
+        anyDone = any(todo.done for todo in todos)
+        anyNotDone = any(not todo.done for todo in todos)
 
         checkBox.setCheckState(
             Qt.CheckState.PartiallyChecked if anyDone and anyNotDone
@@ -125,8 +132,10 @@ def markAllWidget():
         )
     updateCheckedState() # Render initial state.
 
-    checkBox.released.connect(lambda: appState.setAllTodosDone(checkBox.isChecked()))
+    checkBox.released.connect(lambda: appState.setTodosDone(todosFiltered(appState), checkBox.isChecked()))
+
     appState.events.on("todosChange", updateCheckedState)
+    appState.events.on("filterChange", updateCheckedState)
 
     return checkBox
 
@@ -145,16 +154,7 @@ def todoListWidget():
         todosWidget = QWidget()
         todosLayout = QVBoxLayout(todosWidget)
 
-        todosFiltered = [
-            todo
-                for todo in appState.todos()
-                if
-                    appState.todosFilter() == "all" or
-                    appState.todosFilter() == "active" and not todo.done or
-                    appState.todosFilter() == "completed" and todo.done
-        ]
-
-        for todo in todosFiltered:
+        for todo in todosFiltered(appState):
             def loopClosureCapture():
                 todoClosureCapture = todo
 
