@@ -2,6 +2,11 @@
 
 In the spirit of [TodoMVC](https://todomvc.com/), I used [PyQt](https://riverbankcomputing.com/software/pyqt/intro) (Python + [Qt](https://doc.qt.io/qt-6/qt-intro.html)) to create a cross-OS desktop todo app. And I used the [fman build system](https://build-system.fman.io/) (aka fbs) to package the Python runtime and the Qt library binaries into a standalone executable and installer for each of the big three OSes.
 
+| Mac  | Ubuntu | Windows |
+| :--: | :----: | :-----: |
+| ![Mac installer](https://raw.githubusercontent.com/Jeff-Mott-OR/pyqt-todomvc/refs/heads/assets/PyQtTodoMVCDmg.png) | ![Ubuntu installer](https://raw.githubusercontent.com/Jeff-Mott-OR/pyqt-todomvc/refs/heads/assets/PyQtTodoMVCDeb.png) | ![Windows installer](https://raw.githubusercontent.com/Jeff-Mott-OR/pyqt-todomvc/refs/heads/assets/PyQtTodoMVCSetup.png) |
+| ![Mac app](https://raw.githubusercontent.com/Jeff-Mott-OR/pyqt-todomvc/refs/heads/assets/PyQtTodoMVCMac.png) | ![Ubuntu app](https://raw.githubusercontent.com/Jeff-Mott-OR/pyqt-todomvc/refs/heads/assets/PyQtTodoMVCUbuntu.png) | ![Windows app](https://raw.githubusercontent.com/Jeff-Mott-OR/pyqt-todomvc/refs/heads/assets/PyQtTodoMVCWindows.png) |
+
 ## But why?
 
 For fun and no profit. When I learned C++, at first I put off learning a GUI library. But I was interested in and always meant to learn the Qt GUI library. It lets you write desktop GUIs once that will look native for each of the various OSes. Later, after I did a hobby project in Python, I stumbled upon PyQt -- a project that exposes the Qt C++ library in Python -- and I decided to dive in.
