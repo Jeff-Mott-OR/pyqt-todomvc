@@ -1,3 +1,2 @@
 fbs
-PyEventEmitter
 PyQt5

@@ -1,6 +1,6 @@
 from typing import List
 
-from event_emitter import EventEmitter
+from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QApplication
 
 # Just a struct.
@@ -18,9 +18,13 @@ class Filter:
 # This app state represents the one source for truth. UI interactions should
 # update the app state, then the app state will notify subscribers to update
 # themselves.
-class AppState:
+class AppState(QObject):
+    todosChanged = pyqtSignal()
+    filterChanged = pyqtSignal()
+    guiStyleChanged = pyqtSignal()
+
     def __init__(self, qApp: QApplication):
-        self.events = EventEmitter()
+        QObject.__init__(self)
 
         self._todos = []
         self._todosFilter = Filter.ALL
@@ -28,7 +32,7 @@ class AppState:
 
     def addTodo(self, text: str):
         self._todos.append(Todo(text))
-        self.events.emit("todosChange")
+        self.todosChanged.emit()
 
     def todos(self):
         return self._todos
@@ -36,28 +40,28 @@ class AppState:
     def setTodoText(self, todo: Todo, text: str):
         todo.text = text
         todo.editing = False
-        self.events.emit("todosChange")
+        self.todosChanged.emit()
 
     def setTodoEditing(self, todo: Todo):
         todo.editing = True
-        self.events.emit("todosChange")
+        self.todosChanged.emit()
 
     def setTodosDone(self, todos: List[Todo], done: bool):
         for todo in todos:
             todo.done = done
-        self.events.emit("todosChange")
+        self.todosChanged.emit()
 
     def deleteTodo(self, removeTodo: Todo):
         self._todos = [todo for todo in self._todos if not todo is removeTodo]
-        self.events.emit("todosChange")
+        self.todosChanged.emit()
 
     def deleteTodosDone(self):
         self._todos = [todo for todo in self._todos if not todo.done]
-        self.events.emit("todosChange")
+        self.todosChanged.emit()
 
     def setTodosFilter(self, filter: Filter):
         self._todosFilter = filter
-        self.events.emit("filterChange")
+        self.filterChanged.emit()
 
     def todosFilter(self):
         return self._todosFilter
@@ -65,7 +69,7 @@ class AppState:
     # Style name should be one of the keys returned from `QStyleFactory.keys()`.
     def setGuiStyle(self, styleName: str):
         self._qApp.setStyle(styleName)
-        self.events.emit("guiStyleChange")
+        self.guiStyleChanged.emit()
 
     def guiStyle(self):
         return self._qApp.style().objectName()

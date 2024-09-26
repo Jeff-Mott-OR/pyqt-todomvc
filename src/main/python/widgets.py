@@ -31,7 +31,7 @@ def guiStyleMenuActions(appState: AppState):
             # When a menu is clicked, update the one source for truth.
             menuAction.triggered.connect(lambda: appState.setGuiStyle(styleKeyClosureCapture))
             # After the one source for truth is updated, it will notify all interested parties.
-            appState.events.on("guiStyleChange", updateCheckedState)
+            appState.guiStyleChanged.connect(updateCheckedState)
 
             return menuAction
         yield loopClosureCapture()
@@ -69,8 +69,8 @@ def markAllWidget(appState: AppState):
 
     checkBox.released.connect(lambda: appState.setTodosDone(todosFiltered(appState), checkBox.isChecked()))
 
-    appState.events.on("todosChange", updateCheckedState)
-    appState.events.on("filterChange", updateCheckedState)
+    appState.todosChanged.connect(updateCheckedState)
+    appState.filterChanged.connect(updateCheckedState)
 
     return checkBox
 
@@ -148,8 +148,8 @@ def todoListWidget(appState: AppState):
         # and yet I'll still see it unless I hide it.
         oldWidget.hide()
 
-    appState.events.on("todosChange", updateTodoList)
-    appState.events.on("filterChange", updateTodoList)
+    appState.todosChanged.connect(updateTodoList)
+    appState.filterChanged.connect(updateTodoList)
 
     return widget
 
@@ -161,7 +161,7 @@ def numRemainingLabel(appState: AppState):
 
     widget = QLabel(itemsRemainingText())
 
-    appState.events.on("todosChange", lambda: widget.setText(itemsRemainingText()))
+    appState.todosChanged.connect(lambda: widget.setText(itemsRemainingText()))
 
     return widget
 
@@ -182,7 +182,7 @@ def todosFilterBox(appState: AppState):
             updateCheckedState() # Render initial state.
 
             button.clicked.connect(lambda: appState.setTodosFilter(filterKeyClosureCapture))
-            appState.events.on("filterChange", updateCheckedState)
+            appState.filterChanged.connect(updateCheckedState)
 
             layout.addWidget(button)
         loopClosureCapture()
@@ -209,7 +209,7 @@ def footerWidget(appState: AppState):
         widget.setVisible(len(appState.todos()) > 0)
     updateFooterVisible() # Render initial state.
 
-    appState.events.on("todosChange", updateFooterVisible)
+    appState.todosChanged.connect(updateFooterVisible)
 
     return widget
 
